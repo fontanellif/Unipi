@@ -1,0 +1,74 @@
+#!/bin/bash
+# file: logpro
+#    \author Filippo Fontanelli
+#  Si dichiara che il contenuto di questo file e' in ogni sua parte opera
+#  originale dell' autore.
+ARG=1
+E_ERR_ARG=65
+E_NOFILE=66
+file=$1
+        #Controllo Parametri#
+if [ ! -e "$file" ]      # Verifica se il file esiste.
+then
+  echo "Il file \"$file\" non esiste."
+  exit $E_NOFILE
+fi
+
+if [ ! -f "$file" ]      # Verifica se il file e' regolare.
+then
+  echo "Il file \"$file\" non e' regolare."
+  exit $E_NOFILE
+fi
+
+if [ ! -s "$file" ]      # Verifica se il file ha dimensione superiore a zero.
+then
+  echo "Il file \"$file\" non ha dimensione superiore a zero."
+  exit $E_NOFILE
+fi
+
+if [ ! -r "$file" ]      # Verifica se il file ha il permesso di lettura (per l'utente che esegue la verifica).
+then
+  echo "Il file \"$file\" non ha il permesso di lettura."
+  exit $E_NOFILE
+fi
+
+if [ $# -ne "$ARG" ]  #  Il numero di argomenti passati allo script è corretto?
+then
+  echo "Uso: $ ./logpro logfile"
+  file="logfile"
+else
+        #Analisi File#
+#apro il file e inizio a leggere le prime righe
+exec 40< $1 
+((numsender=0))
+read -u 40 line
+
+while [ ${#line} != 0 ]; do
+  msgsender=${line%%:*}
+  msgtext=${line##*:}	
+	#costruisco gli array per memorizzare i dati
+  ((i=0))
+  while [ $i != $numsender  ] && [ ${senders[$i]} != $msgsender ];do	
+	((i+=1))
+  done
+  if [ $i != $numsender ]; then
+	((length[$i]+=${#msgtext}))
+  else
+	senders[$i]=$msgsender
+	((length[$i]=${#msgtext}))
+	((numsender+=1))
+  fi
+read -u 40 line
+done
+fi
+#chiudo il file
+exec 40>&-
+#scorro l'array e stampo i risultati ottenuti mettendo l'output in pipe con sort
+((k=0))
+while [ $k != $numsender ]; do
+	echo "${senders[$k]} ${length[$k]}" 1>>"$1.sort" 
+	((k+=1))
+done | sort
+
+sort <"$1.sort"
+rm "$1.sort"
